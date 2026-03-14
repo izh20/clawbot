@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>照片画廊</title>
+  <!-- Leaflet disabled temporarily -->
+  <!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script> -->
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a1a;
+      color: #fff;
+      padding: 20px;
+    }
+    
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+    .header h1 { margin: 0; }
+    
+    /* View Switcher */
+    .view-switcher {
+      display: flex;
+      gap: 8px;
+      background: #2a2a2a;
+      padding: 4px;
+      border-radius: 8px;
+    }
+    .view-btn {
+      padding: 8px 12px;
+      background: transparent;
+      border: none;
+      color: #888;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: all 0.3s;
+    }
+    .view-btn:hover { color: #fff; }
+    .view-btn.active {
+      background: #007AFF;
+      color: #fff;
+    }
+    
+    /* Toolbar */
+    .toolbar {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    
+    /* Search */
+    .search-box {
+      display: flex;
+      align-items: center;
+      background: #2a2a2a;
+      border-radius: 8px;
+      padding: 8px 12px;
+      gap: 8px;
+    }
+    .search-box input {
+      background: transparent;
+      border: none;
+      color: #fff;
+      outline: none;
+      width: 200px;
+    }
+    .search-box input::placeholder { color: #666; }
+    
+    /* Filters */
+    .filters {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .filter-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .filter-group label { color: #888; }
+    .filter-group select {
+      padding: 8px 12px;
+      background: #333;
+      color: #fff;
+      border: 1px solid #444;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .filter-group select:hover { border-color: #666; }
+    
+    /* Stats */
+    .stats {
+      text-align: center;
+      color: #666;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    
+    /* Gallery - Grid View */
+    .gallery {
+      column-count: 4;
+      column-gap: 10px;
+    }
+    @media (max-width: 1200px) { .gallery { column-count: 3; } }
+    @media (max-width: 800px) { .gallery { column-count: 2; } }
+    @media (max-width: 500px) { .gallery { column-count: 1; } }
+    
+    /* Gallery - Waterfall View */
+    .gallery.waterfall {
+      column-count: 6;
+      column-gap: 8px;
+    }
+    .gallery.waterfall .photo {
+      margin-bottom: 8px;
+    }
+    .gallery.waterfall .photo img {
+      width: 100%;
+    }
+    
+    /* Photo Card */
+    .photo {
+      break-inside: avoid;
+      margin-bottom: 10px;
+      position: relative;
+      cursor: pointer;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #2a2a2a;
+    }
+    .photo img {
+      width: 100%;
+      display: block;
+      transition: transform 0.3s;
+    }
+    .photo:hover img { transform: scale(1.05); }
+    
+    .photo-overlay {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(transparent 60%, rgba(0,0,0,0.8));
+      opacity: 0;
+      transition: opacity 0.3s;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      padding: 10px;
+    }
+    .photo:hover .photo-overlay { opacity: 1; }
+    
+    .photo-info {
+      font-size: 12px;
+    }
+    
+    .photo-actions {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      display: flex;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .photo:hover .photo-actions { opacity: 1; }
+    
+    .photo-action {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.6);
+      border: none;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s;
+    }
+    .photo-action:hover { background: rgba(0,0,0,0.9); }
+    .photo-action.favorited { color: #FF3B30; }
+    
+    /* Slideshow */
+    .slideshow {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #000;
+      z-index: 2000;
+    }
+    .slideshow.active { display: flex; }
+    .slideshow img {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+    }
+    .slideshow-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 40px;
+      color: #fff;
+      cursor: pointer;
+      z-index: 10;
+    }
+    .slideshow-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 60px;
+      color: #fff;
+      cursor: pointer;
+      padding: 30px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+      z-index: 10;
+    }
+    .slideshow-nav:hover { background: rgba(0,0,0,0.6); }
+    .slideshow-prev { left: 20px; }
+    .slideshow-next { right: 20px; }
+    .slideshow-info {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      padding: 15px 25px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .slideshow-progress {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: #007AFF;
+      transition: width 0.3s;
+    }
+    
+    /* Upload Button */
+    .upload-btn {
+      position: fixed;
+      bottom: 30px;
+      right: 30px;
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: #007AFF;
+      color: #fff;
+      font-size: 30px;
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 20px rgba(0,122,255,0.4);
+      transition: transform 0.3s, box-shadow 0.3s;
+      z-index: 100;
+    }
+    .upload-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 6px 30px rgba(0,122,255,0.6);
+    }
+    
+    /* Upload Modal */
+    .upload-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .upload-modal.active { display: flex; }
+    
+    .upload-panel {
+      background: #2a2a2a;
+      border-radius: 16px;
+      padding: 30px;
+      width: 90%;
+      max-width: 600px;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .upload-panel h2 {
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .upload-dropzone {
+      border: 2px dashed #444;
+      border-radius: 12px;
+      padding: 40px;
+      text-align: center;
+      color: #888;
+      transition: border-color 0.3s, background 0.3s;
+      cursor: pointer;
+    }
+    .upload-dropzone:hover, .upload-dropzone.dragover {
+      border-color: #007AFF;
+      background: rgba(0,122,255,0.1);
+    }
+    .upload-dropzone input { display: none; }
+    
+    .upload-list { margin-top: 20px; }
+    .upload-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: #333;
+      border-radius: 8px;
+      margin-bottom: 8px;
+    }
+    .upload-item.success { border-left: 3px solid #34C759; }
+    .upload-item.error { border-left: 3px solid #FF3B30; }
+    .upload-item-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .upload-item-status { font-size: 12px; color: #888; }
+    
+    .upload-options {
+      margin-top: 20px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+    }
+    
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      transition: opacity 0.3s;
+    }
+    .btn:hover { opacity: 0.8; }
+    .btn-primary { background: #007AFF; color: #fff; }
+    .btn-secondary { background: #444; color: #fff; }
+    .btn-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 30px;
+      color: #fff;
+      cursor: pointer;
+      background: none;
+      border: none;
+    }
+    
+    .upload-tip {
+      margin-top: 15px;
+      font-size: 12px;
+      color: #666;
+      text-align: center;
+    }
+    
+    /* Lightbox */
+    .lightbox {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.95);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .lightbox.active { display: flex; }
+    .lightbox img {
+      max-width: 90%;
+      max-height: 90%;
+      object-fit: contain;
+    }
+    .lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      font-size: 40px;
+      color: #fff;
+      cursor: pointer;
+    }
+    .lightbox-nav {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 40px;
+      color: #fff;
+      cursor: pointer;
+      padding: 20px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 8px;
+    }
+    .lightbox-nav:hover { background: rgba(0,0,0,0.5); }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+    .lightbox-info {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.8);
+      padding: 15px 25px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    
+    /* Loading */
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: #666;
+    }
+    
+    /* Favorites filter */
+    .filter-favorites {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      padding: 8px 12px;
+      background: #333;
+      border-radius: 6px;
+      border: 1px solid #444;
+    }
+    .filter-favorites:hover { border-color: #666; }
+    .filter-favorites.active {
+      background: rgba(255,59,48,0.2);
+      border-color: #FF3B30;
+    }
+    
+    /* Timeline Navigation */
+    .timeline-nav {
+      display: none;
+      background: #2a2a2a;
+      border-radius: 12px;
+      padding: 15px;
+      margin-bottom: 20px;
+    }
+    .timeline-nav.active { display: block; }
+    .timeline-year {
+      margin-bottom: 10px;
+    }
+    .timeline-year-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px;
+      background: #333;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .timeline-year-header:hover { background: #444; }
+    .timeline-year-header.active { background: #007AFF; }
+    .timeline-year-icon { font-size: 18px; }
+    .timeline-year-title { font-size: 16px; font-weight: 600; }
+    .timeline-year-count { font-size: 12px; color: #888; margin-left: auto; }
+    .timeline-months {
+      display: none;
+      padding: 10px 0 0 30px;
+    }
+    .timeline-year.expanded .timeline-months { display: block; }
+    .timeline-month {
+      display: inline-block;
+      padding: 6px 12px;
+      margin: 4px;
+      background: #333;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.3s;
+    }
+    .timeline-month:hover { background: #444; }
+    .timeline-month.active { background: #007AFF; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📷 照片画廊</h1>
+    
+    <div class="toolbar">
+      <!-- View Switcher -->
+      <div class="view-switcher">
+        <button class="view-btn active" data-view="grid" title="网格视图">▦</button>
+        <button class="view-btn" data-view="waterfall" title="瀑布流">▙</button>
+        <button class="view-btn" data-view="slideshow" title="幻灯片">▶</button>
+        <button class="view-btn" data-view="timeline" title="时间线">📅</button>
+        <button class="view-btn" data-view="map" title="地图">🗺️</button>
+      </div>
+      
+      <!-- Search -->
+      <div class="search-box">
+        <span>🔍</span>
+        <input type="text" id="searchInput" placeholder="搜索照片...">
+      </div>
+      
+      <!-- Favorites Filter -->
+      <div class="filter-favorites" id="filterFavorites">
+        <span>❤️</span>
+        <span>收藏</span>
+      </div>
+      
+      <!-- AI Analyze Button -->
+      <button class="btn btn-primary" id="analyzeBtn" style="background: #34C759;">
+        🦜 AI识鸟
+      </button>
+    </div>
+  </div>
+  
+  <!-- Timeline Navigation -->
+  <div class="timeline-nav" id="timelineNav">
+    <div class="timeline-years" id="timelineYears"></div>
+  </div>
+  
+  <div class="filters">
+    <div class="filter-group">
+      <label>日期:</label>
+      <select id="filterDate">
+        <option value="">全部</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>器材:</label>
+      <select id="filterModel">
+        <option value="">全部</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>镜头:</label>
+      <select id="filterLens">
+        <option value="">全部</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>鸟种:</label>
+      <select id="filterBird">
+        <option value="">全部</option>
+      </select>
+    </div>
+  </div>
+  
+  <div class="stats" id="stats"></div>
+  <div class="gallery" id="gallery"></div>
+  
+  <!-- Map View -->
+  <div id="map" style="display: none; height: 600px; border-radius: 12px; overflow: hidden; margin-top: 20px;"></div>
+  <div class="loading" id="loading">加载中...</div>
+  
+  <button class="upload-btn" id="uploadBtn" title="上传照片">+</button>
+  
+  <!-- Upload Modal -->
+  <div class="upload-modal" id="uploadModal">
+    <div class="upload-panel">
+      <h2>📤 上传照片</h2>
+      
+      <div class="upload-dropzone" id="dropzone">
+        <input type="file" id="fileInput" multiple accept="image/*,.raw,.cr2,.nef,.arw,.dng,.heic,.avif">
+        <div>
+          <div style="font-size: 40px; margin-bottom: 10px;">📁</div>
+          <div>拖拽文件到这里，或点击选择</div>
+          <div style="margin-top: 10px;">支持批量选择</div>
+        </div>
+      </div>
+      
+      <div class="upload-tip">💡 也可以直接 Ctrl+V 粘贴图片</div>
+      
+      <div class="upload-options">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+          <input type="checkbox" id="autoDate" checked>
+          自动按日期归类
+        </label>
+      </div>
+      
+      <div class="upload-list" id="uploadList"></div>
+      
+      <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-secondary" id="closeUpload">关闭</button>
+        <button class="btn btn-primary" id="startUpload" disabled>开始上传</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox">
+    <span class="lightbox-close" id="lightboxClose">&times;</span>
+    <span class="lightbox-nav lightbox-prev" id="lightboxPrev">‹</span>
+    <span class="lightbox-nav lightbox-next" id="lightboxNext">›</span>
+    <img id="lightboxImg" src="" alt="">
+    <div class="lightbox-info" id="lightboxInfo"></div>
+  </div>
+  
+  <!-- Slideshow -->
+  <div class="slideshow" id="slideshow">
+    <span class="slideshow-close" id="slideshowClose">&times;</span>
+    <span class="slideshow-nav slideshow-prev" id="slideshowPrev">‹</span>
+    <span class="slideshow-nav slideshow-next" id="slideshowNext">›</span>
+    <img id="slideshowImg" src="" alt="">
+    <div class="slideshow-info" id="slideshowInfo"></div>
+    <div class="slideshow-progress" id="slideshowProgress"></div>
+  </div>
+
+  <script>
+    window.onerror = function(msg, url, line, col, error) {
+      alert('Error: ' + msg + '\nLine: ' + line);
+    };
+    
+    const API = window.location.origin + '/api';
+    let allPhotos = [];
+    let currentPhotoIndex = 0;
+    let filteredPhotos = [];
+    let selectedFiles = [];
+    let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+    let currentView = 'grid';
+    let slideshowTimer = null;
+    let showFavoritesOnly = false;
+    
+    // View switcher
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentView = btn.dataset.view;
+        
+        const gallery = document.getElementById('gallery');
+        gallery.className = 'gallery';
+        if (currentView === 'waterfall') {
+          gallery.classList.add('waterfall');
+        }
+        
+        if (currentView === 'slideshow') {
+          startSlideshow();
+        }
+        
+        // Toggle timeline
+        const timelineNav = document.getElementById('timelineNav');
+        const gallery = document.getElementById('gallery');
+        const mapDiv = document.getElementById('map');
+        
+        if (currentView === 'timeline') {
+          timelineNav.classList.add('active');
+          gallery.style.display = 'block';
+          mapDiv.style.display = 'none';
+        } else if (currentView === 'map') {
+          timelineNav.classList.remove('active');
+          gallery.style.display = 'none';
+          mapDiv.style.display = 'block';
+          loadMap();
+        } else {
+          timelineNav.classList.remove('active');
+          gallery.style.display = 'block';
+          mapDiv.style.display = 'none';
+        }
+      };
+    });
+    
+    // Search
+    document.getElementById('searchInput').oninput = () => {
+      renderGallery();
+    };
+    
+    // Favorites filter
+    document.getElementById('filterFavorites').onclick = () => {
+      showFavoritesOnly = !showFavoritesOnly;
+      document.getElementById('filterFavorites').classList.toggle('active', showFavoritesOnly);
+      renderGallery();
+    };
+    
+    // Upload modal
+    const uploadModal = document.getElementById('uploadModal');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const uploadList = document.getElementById('uploadList');
+    const startUpload = document.getElementById('startUpload');
+    const closeUpload = document.getElementById('closeUpload');
+    const autoDateCheckbox = document.getElementById('autoDate');
+    
+    uploadBtn.onclick = () => {
+      uploadModal.classList.add('active');
+      selectedFiles = [];
+      uploadList.innerHTML = '';
+      startUpload.disabled = true;
+    };
+    
+    closeUpload.onclick = () => uploadModal.classList.remove('active');
+    uploadModal.onclick = (e) => { if (e.target === uploadModal) uploadModal.classList.remove('active'); };
+    
+    dropzone.onclick = () => fileInput.click();
+    dropzone.ondragover = (e) => { e.preventDefault(); dropzone.classList.add('dragover'); };
+    dropzone.ondragleave = () => dropzone.classList.remove('dragover');
+    dropzone.ondrop = (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); };
+    fileInput.onchange = () => handleFiles(fileInput.files);
+    
+    function handleFiles(files) {
+      selectedFiles = [...files];
+      renderUploadList();
+      startUpload.disabled = selectedFiles.length === 0;
+    }
+    
+    function renderUploadList() {
+      uploadList.innerHTML = selectedFiles.map((f, i) => `
+        <div class="upload-item">
+          <span class="upload-item-name">${f.name}</span>
+          <span class="upload-item-status">${(f.size / 1024 / 1024).toFixed(2)} MB</span>
+        </div>
+      `).join('');
+    }
+    
+    // Paste upload
+    document.onpaste = (e) => {
+      const items = e.clipboardData.items;
+      for (const item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          if (file) {
+            selectedFiles = [file];
+            uploadModal.classList.add('active');
+            renderUploadList();
+            startUpload.disabled = false;
+            startUpload.onclick();
+          }
+        }
+      }
+    };
+    
+    // Start upload
+    startUpload.onclick = async () => {
+      if (selectedFiles.length === 0) return;
+      startUpload.disabled = true;
+      startUpload.textContent = '上传中...';
+      
+      const formData = new FormData();
+      for (const f of selectedFiles) formData.append('photos', f);
+      formData.append('autoDate', autoDateCheckbox.checked);
+      
+      try {
+        const res = await fetch(`${API}/upload`, { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if (data.results) {
+          data.results.forEach((r, i) => {
+            const item = uploadList.children[i];
+            if (r.success) {
+              item.classList.add('success');
+              item.querySelector('.upload-item-status').textContent = '✓ 上传成功';
+            } else {
+              item.classList.add('error');
+              item.querySelector('.upload-item-status').textContent = '✗ ' + r.error;
+            }
+          });
+        }
+        
+        setTimeout(() => {
+          loadPhotos();
+          uploadModal.classList.remove('active');
+          startUpload.textContent = '开始上传';
+        }, 1000);
+      } catch (err) {
+        alert('上传失败: ' + err.message);
+        startUpload.disabled = false;
+        startUpload.textContent = '开始上传';
+      }
+    };
+    
+    // AI Analyze button
+    document.getElementById('analyzeBtn').onclick = async () => {
+      if (!confirm('🦜 将启动慧眼选鸟进行AI分析，是否继续？')) return;
+      
+      const btn = document.getElementById('analyzeBtn');
+      btn.disabled = true;
+      btn.textContent = '🔄 分析中...';
+      
+      try {
+        const res = await fetch(`${API}/analyze`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+          alert('✅ AI分析完成！请查看慧眼选鸟结果。');
+        } else {
+          alert('❌ 分析失败: ' + data.error);
+        }
+      } catch (err) {
+        alert('❌ 错误: ' + err.message);
+      }
+      
+      btn.disabled = false;
+      btn.textContent = '🦜 AI识鸟';
+    };
+    
+    // Load photos
+    async function loadPhotos() { 
+      console.log("Loading photos...");
+      document.getElementById('loading').style.display = 'block';
+      const res = await fetch(`${API}/photos`);
+      console.log("Response:", res);
+      allPhotos = await res.json();
+      console.log("Photos loaded:", allPhotos.length);
+      
+      // Build filter options
+      const dates = {}, models = {}, lenses = {};
+      for (const p of allPhotos) {
+        if (p.exif.dateTime) {
+          const d = p.exif.dateTime.substring(0, 10);
+          dates[d] = (dates[d] || 0) + 1;
+        }
+        if (p.exif.model) models[p.exif.model] = (models[p.exif.model] || 0) + 1;
+        if (p.exif.lens) lenses[p.exif.lens] = (lenses[p.exif.lens] || 0) + 1;
+      }
+      
+      // Count birds
+      const birds = {};
+      for (const p of allPhotos) {
+        if (p.bird && p.bird.chinese) {
+          birds[p.bird.chinese] = (birds[p.bird.chinese] || 0) + 1;
+        }
+      }
+      
+      document.getElementById('filterDate').innerHTML = '<option value="">全部</option>';
+      document.getElementById('filterModel').innerHTML = '<option value="">全部</option>';
+      document.getElementById('filterLens').innerHTML = '<option value="">全部</option>';
+      document.getElementById('filterBird').innerHTML = '<option value="">全部</option>';
+      
+      for (const d of Object.keys(dates).sort().reverse()) {
+        document.getElementById('filterDate').innerHTML += `<option value="${d}">${d} (${dates[d]}张)</option>`;
+      }
+      for (const m of Object.keys(models).sort()) {
+        document.getElementById('filterModel').innerHTML += `<option value="${m}">${m} (${models[m]}张)</option>`;
+      }
+      for (const l of Object.keys(lenses).sort()) {
+        document.getElementById('filterLens').innerHTML += `<option value="${l}">${l} (${lenses[l]}张)</option>`;
+      }
+      for (const b of Object.keys(birds).sort()) {
+        document.getElementById('filterBird').innerHTML += `<option value="${b}">${b} (${birds[b]}张)</option>`;
+      }
+      
+      document.getElementById('filterDate').onchange = renderGallery;
+      document.getElementById('filterModel').onchange = renderGallery;
+      document.getElementById('filterBird').onchange = renderGallery;
+      document.getElementById('filterLens').onchange = renderGallery;
+      
+      // Build timeline
+      buildTimeline(dates);
+      
+      document.getElementById('loading').style.display = 'none';
+      renderGallery();
+    }
+    
+    function buildTimeline(dates) {
+      // Group by year and month
+      const timeline = {};
+      for (const date of Object.keys(dates)) {
+        const [year, month] = date.split('-');
+        if (!timeline[year]) timeline[year] = {};
+        timeline[year][month] = (timeline[year][month] || 0) + dates[date];
+      }
+      
+      const months = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+      
+      let html = '';
+      for (const year of Object.keys(timeline).sort().reverse()) {
+        const total = Object.values(timeline[year]).reduce((a, b) => a + b, 0);
+        html += `
+          <div class="timeline-year" data-year="${year}">
+            <div class="timeline-year-header" onclick="this.parentElement.classList.toggle('expanded')">
+              <span class="timeline-year-icon">📅</span>
+              <span class="timeline-year-title">${year}年</span>
+              <span class="timeline-year-count">${total}张照片</span>
+            </div>
+            <div class="timeline-months">
+        `;
+        
+        for (const month of Object.keys(timeline[year]).sort().reverse()) {
+          const m = parseInt(month) - 1;
+          html += `<span class="timeline-month" data-year="${year}" data-month="${month}">${months[m]} (${timeline[year][month]})</span>`;
+        }
+        
+        html += '</div></div>';
+      }
+      
+      document.getElementById('timelineYears').innerHTML = html;
+      
+      // Add click handlers for months
+      document.querySelectorAll('.timeline-month').forEach(el => {
+        el.onclick = (e) => {
+          e.stopPropagation();
+          const year = el.dataset.year;
+          const month = el.dataset.month;
+          
+          // Update active state
+          document.querySelectorAll('.timeline-month').forEach(m => m.classList.remove('active'));
+          el.classList.add('active');
+          
+          // Filter to this month
+          const dateFilter = `${year}-${month}`;
+          filteredPhotos = allPhotos.filter(p => p.exif.dateTime && p.exif.dateTime.startsWith(dateFilter));
+          document.getElementById('stats').textContent = `共 ${filteredPhotos.length} 张照片 - ${year}年${months[parseInt(month)-1]}`;
+          
+          renderFilteredGallery();
+        };
+      });
+    }
+    
+    function isFavorite(photo) {
+      return favorites.includes(photo.path);
+    }
+    
+    function toggleFavorite(photo, btn) {
+      event.stopPropagation();
+      if (isFavorite(photo)) {
+        favorites = favorites.filter(f => f !== photo.path);
+        btn.classList.remove('favorited');
+        btn.textContent = '♡';
+      } else {
+        favorites.push(photo.path);
+        btn.classList.add('favorited');
+        btn.textContent = '❤️';
+      }
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+      if (showFavoritesOnly) renderGallery();
+    }
+    
+    function renderGallery() {
+      const searchText = document.getElementById('searchInput').value.toLowerCase();
+      const dateFilter = document.getElementById('filterDate').value;
+      const modelFilter = document.getElementById('filterModel').value;
+      const lensFilter = document.getElementById('filterLens').value;
+      const birdFilter = document.getElementById('filterBird').value;
+      
+      filteredPhotos = allPhotos.filter(p => {
+        if (showFavoritesOnly && !isFavorite(p)) return false;
+        if (searchText && !p.name.toLowerCase().includes(searchText) && 
+            !p.exif.model?.toLowerCase().includes(searchText) &&
+            !p.exif.lens?.toLowerCase().includes(searchText) &&
+            !p.bird?.chinese?.toLowerCase().includes(searchText)) return false;
+        if (dateFilter && (!p.exif.dateTime || !p.exif.dateTime.startsWith(dateFilter))) return false;
+        if (modelFilter && p.exif.model !== modelFilter) return false;
+        if (lensFilter && p.exif.lens !== lensFilter) return false;
+        if (birdFilter && (!p.bird || p.bird.chinese !== birdFilter)) return false;
+        return true;
+      });
+      
+      document.getElementById('stats').textContent = `共 ${filteredPhotos.length} 张照片`;
+      
+      const gallery = document.getElementById('gallery');
+      gallery.innerHTML = '';
+      
+      for (const photo of filteredPhotos) {
+        const div = document.createElement('div');
+        div.className = 'photo';
+        const faved = isFavorite(photo);
+        
+        // Build star rating display
+        let stars = '';
+        if (photo.starRating) {
+          stars = '⭐'.repeat(photo.starRating);
+        }
+        
+        // Build bird info display
+        let birdInfo = '';
+        if (photo.bird) {
+          birdInfo = `<div style="color: #4CAF50; font-weight: bold;">${photo.bird.chinese}</div>
+            <div style="font-size: 11px; font-style: italic;">${photo.bird.english}</div>`;
+        }
+        
+        div.innerHTML = `
+          <img src="${API}/thumbnail?name=${encodeURIComponent(photo.path.replace('/photos/', ''))}" alt="${photo.name}" loading="lazy">
+          <div class="photo-overlay">
+            <div class="photo-info">
+              ${stars ? `<div style="color: #FFD700;">${stars}</div>` : ''}
+              ${birdInfo}
+              ${photo.exif.dateTime ? new Date(photo.exif.dateTime).toLocaleString() : ''}
+              ${photo.exif.model ? `<br>${photo.exif.model}` : ''}
+              ${photo.exif.focalLength ? `<br>${photo.exif.focalLength}mm` : ''}
+            </div>
+          </div>
+          <div class="photo-actions">
+            <button class="photo-action ${faved ? 'favorited' : ''}" data-favorite="${photo.path}">${faved ? '❤️' : '♡'}</button>
+          </div>
+        `;
+        div.onclick = () => openLightbox(photo);
+        div.querySelector('.photo-action').onclick = (e) => toggleFavorite(photo, e.target);
+        gallery.appendChild(div);
+      }
+    }
+    
+    // Render already filtered photos (for timeline)
+    function renderFilteredGallery() {
+      const gallery = document.getElementById('gallery');
+      gallery.innerHTML = '';
+      
+      for (const photo of filteredPhotos) {
+        const div = document.createElement('div');
+        div.className = 'photo';
+        const faved = isFavorite(photo);
+        
+        // Build star rating display
+        let stars = '';
+        if (photo.starRating) {
+          stars = '⭐'.repeat(photo.starRating);
+        }
+        
+        // Build bird info display
+        let birdInfo = '';
+        if (photo.bird) {
+          birdInfo = `<div style="color: #4CAF50; font-weight: bold;">${photo.bird.chinese}</div>
+            <div style="font-size: 11px; font-style: italic;">${photo.bird.english}</div>`;
+        }
+        
+        div.innerHTML = `
+          <img src="${API}/thumbnail?name=${encodeURIComponent(photo.path.replace('/photos/', ''))}" alt="${photo.name}" loading="lazy">
+          <div class="photo-overlay">
+            <div class="photo-info">
+              ${stars ? `<div style="color: #FFD700;">${stars}</div>` : ''}
+              ${birdInfo}
+              ${photo.exif.dateTime ? new Date(photo.exif.dateTime).toLocaleString() : ''}
+              ${photo.exif.model ? `<br>${photo.exif.model}` : ''}
+              ${photo.exif.focalLength ? `<br>${photo.exif.focalLength}mm` : ''}
+            </div>
+          </div>
+          <div class="photo-actions">
+            <button class="photo-action ${faved ? 'favorited' : ''}" data-favorite="${photo.path}">${faved ? '❤️' : '♡'}</button>
+          </div>
+        `;
+        div.onclick = () => openLightbox(photo);
+        div.querySelector('.photo-action').onclick = (e) => toggleFavorite(photo, e.target);
+        gallery.appendChild(div);
+      }
+    }
+    
+    function openLightbox(photo) {
+      currentPhotoIndex = filteredPhotos.findIndex(p => p.path === photo.path);
+      updateLightbox();
+      document.getElementById('lightbox').classList.add('active');
+    }
+    
+    function updateLightbox() {
+      const photo = filteredPhotos[currentPhotoIndex];
+      document.getElementById('lightboxImg').src = photo.path;
+      const info = [];
+      
+      // Bird info
+      if (photo.bird) {
+        info.push(`<div style="color: #4CAF50; font-size: 18px; font-weight: bold;">${photo.bird.chinese}</div>`);
+        info.push(`<div style="font-style: italic;">${photo.bird.english}</div>`);
+        info.push(`<div style="font-size: 12px; color: #888;">${photo.bird.scientific}</div>`);
+      }
+      
+      // Star rating
+      if (photo.starRating) {
+        info.push(`<div style="color: #FFD700; font-size: 16px;">${'⭐'.repeat(photo.starRating)}</div>`);
+      }
+      
+      if (photo.exif.dateTime) info.push(new Date(photo.exif.dateTime).toLocaleString());
+      if (photo.exif.model) info.push(photo.exif.model);
+      if (photo.exif.lens) info.push(photo.exif.lens);
+      if (photo.exif.focalLength) info.push(`${photo.exif.focalLength}mm`);
+      if (photo.exif.fNumber) info.push(`ƒ/${photo.exif.fNumber}`);
+      if (photo.exif.exposureTime) info.push(`1/${Math.round(1/photo.exif.exposureTime)}s`);
+      if (photo.exif.iso) info.push(`ISO ${photo.exif.iso}`);
+      document.getElementById('lightboxInfo').innerHTML = info.join('<br>') || photo.name;
+    }
+    
+    document.getElementById('lightboxClose').onclick = () => document.getElementById('lightbox').classList.remove('active');
+    document.getElementById('lightbox').onclick = (e) => { if (e.target.id === 'lightbox') document.getElementById('lightbox').classList.remove('active'); };
+    document.getElementById('lightboxPrev').onclick = (e) => { e.stopPropagation(); currentPhotoIndex = (currentPhotoIndex - 1 + filteredPhotos.length) % filteredPhotos.length; updateLightbox(); };
+    document.getElementById('lightboxNext').onclick = (e) => { e.stopPropagation(); currentPhotoIndex = (currentPhotoIndex + 1) % filteredPhotos.length; updateLightbox(); };
+    
+    // Slideshow
+    function startSlideshow() {
+      if (filteredPhotos.length === 0) return;
+      currentPhotoIndex = 0;
+      document.getElementById('slideshow').classList.add('active');
+      updateSlideshow();
+      startSlideshowTimer();
+    }
+    
+    function startSlideshowTimer() {
+      if (slideshowTimer) clearInterval(slideshowTimer);
+      slideshowTimer = setInterval(() => {
+        currentPhotoIndex = (currentPhotoIndex + 1) % filteredPhotos.length;
+        updateSlideshow();
+      }, 3000);
+    }
+    
+    function updateSlideshow() {
+      const photo = filteredPhotos[currentPhotoIndex];
+      document.getElementById('slideshowImg').src = photo.path;
+      const info = [];
+      if (photo.exif.dateTime) info.push(new Date(photo.exif.dateTime).toLocaleString());
+      if (photo.exif.model) info.push(photo.exif.model);
+      document.getElementById('slideshowInfo').innerHTML = info.join('<br>') || photo.name;
+      
+      // Progress bar
+      const progress = ((currentPhotoIndex + 1) / filteredPhotos.length) * 100;
+      document.getElementById('slideshowProgress').style.width = progress + '%';
+    }
+    
+    document.getElementById('slideshowClose').onclick = () => {
+      document.getElementById('slideshow').classList.remove('active');
+      if (slideshowTimer) clearInterval(slideshowTimer);
+    };
+    document.getElementById('slideshowPrev').onclick = () => { currentPhotoIndex = (currentPhotoIndex - 1 + filteredPhotos.length) % filteredPhotos.length; updateSlideshow(); startSlideshowTimer(); };
+    document.getElementById('slideshowNext').onclick = () => { currentPhotoIndex = (currentPhotoIndex + 1) % filteredPhotos.length; updateSlideshow(); startSlideshowTimer(); };
+    
+    // Keyboard navigation
+    document.onkeydown = (e) => {
+      if (document.getElementById('lightbox').classList.contains('active')) {
+        if (e.key === 'ArrowLeft') { currentPhotoIndex = (currentPhotoIndex - 1 + filteredPhotos.length) % filteredPhotos.length; updateLightbox(); }
+        else if (e.key === 'ArrowRight') { currentPhotoIndex = (currentPhotoIndex + 1) % filteredPhotos.length; updateLightbox(); }
+        else if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('active');
+      }
+      if (document.getElementById('slideshow').classList.contains('active')) {
+        if (e.key === 'ArrowLeft') { currentPhotoIndex = (currentPhotoIndex - 1 + filteredPhotos.length) % filteredPhotos.length; updateSlideshow(); startSlideshowTimer(); }
+        else if (e.key === 'ArrowRight') { currentPhotoIndex = (currentPhotoIndex + 1) % filteredPhotos.length; updateSlideshow(); startSlideshowTimer(); }
+        else if (e.key === 'Escape') document.getElementById('slideshow').classList.remove('active');
+      }
+    };
+    
+    // Map
+    let map = null;
+    let markers = [];
+    
+    async function loadMap() {
+      const mapDiv = document.getElementById('map');
+      
+      // Initialize map if not already
+      if (!map) {
+        map = L.map('map').setView([35.6762, 139.6503], 10); // Tokyo
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '© OpenStreetMap'
+        }).addTo(map);
+      }
+      
+      // Clear existing markers
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+      
+      // Fetch photos with location
+      try {
+        const res = await fetch(`${API}/map`);
+        const photos = await res.json();
+        
+        // Add markers
+        for (const photo of photos) {
+          if (photo.location && photo.location.lat) {
+            const marker = L.marker([photo.location.lat, photo.location.lng])
+              .addTo(map)
+              .bindPopup(`
+                <div style="text-align: center;">
+                  <img src="${API}/thumbnail?name=${encodeURIComponent(photo.path.replace('/photos/', ''))}" style="width: 150px; height: auto; border-radius: 4px;">
+                  <div style="margin-top: 8px; font-weight: bold;">${photo.bird?.chinese || ''}</div>
+                  <div style="font-size: 12px; color: #666;">${photo.bird?.english || ''}</div>
+                  <div style="font-size: 11px; color: #888;">${photo.dateTime ? new Date(photo.dateTime).toLocaleDateString() : ''}</div>
+                </div>
+              `);
+            markers.push(marker);
+          }
+        }
+        
+        // Fit bounds if markers exist
+        if (markers.length > 0) {
+          const group = L.featureGroup(markers);
+          map.fitBounds(group.getBounds().pad(0.1));
+        }
+        
+        document.getElementById('stats').textContent = `地图视图 - ${markers.length} 个标记点`;
+        
+      } catch (err) {
+        console.error('Map load error:', err);
+      }
+    }
+    
+    loadPhotos().catch(e => { 
+      console.error('Load error:', e); 
+      document.getElementById('loading').style.display = 'none'; 
+    });
+  </script>
+</body>
+</html>

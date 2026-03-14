@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>照片画廊 - 鸟类图库</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 20px; }
+    
+    /* Header & Toolbar */
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+    .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    
+    /* View Switcher */
+    .view-switcher { display: flex; gap: 5px; background: #2a2a2a; padding: 4px; border-radius: 8px; }
+    .view-btn { padding: 8px 12px; background: transparent; border: none; color: #888; cursor: pointer; border-radius: 6px; font-size: 14px; }
+    .view-btn:hover, .view-btn.active { background: #007AFF; color: #fff; }
+    
+    /* Search */
+    .search-box { display: flex; align-items: center; background: #2a2a2a; border-radius: 8px; padding: 8px 12px; gap: 8px; }
+    .search-box input { background: transparent; border: none; color: #fff; outline: none; width: 150px; }
+    
+    /* Filters */
+    .filters { display: flex; gap: 15px; justify-content: center; margin-bottom: 20px; flex-wrap: wrap; }
+    .filter-group { display: flex; align-items: center; gap: 8px; }
+    .filter-group label { color: #888; font-size: 14px; }
+    .filter-group select { padding: 8px 12px; background: #333; color: #fff; border: 1px solid #444; border-radius: 6px; cursor: pointer; }
+    
+    /* Favorites */
+    .filter-favorites { display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 12px; background: #333; border-radius: 6px; border: 1px solid #444; }
+    .filter-favorites:hover, .filter-favorites.active { border-color: #FF3B30; }
+    
+    /* Stats */
+    .stats { text-align: center; color: #666; margin-bottom: 15px; font-size: 14px; }
+    
+    /* Gallery - Grid */
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .photo { border-radius: 8px; overflow: hidden; position: relative; cursor: pointer; background: #2a2a2a; }
+    .photo img { width: 100%; height: 200px; object-fit: cover; display: block; transition: transform 0.3s; }
+    .photo:hover img { transform: scale(1.05); }
+    .photo-overlay { position: absolute; bottom: 0; left: 0; right: 0; padding: 10px; background: linear-gradient(transparent, rgba(0,0,0,0.8)); opacity: 0; transition: opacity 0.3s; }
+    .photo:hover .photo-overlay { opacity: 1; }
+    .photo-info { font-size: 12px; }
+    .photo-bird { color: #4CAF50; font-weight: bold; }
+    .photo-stars { color: #FFD700; }
+    .photo-action { position: absolute; top: 10px; right: 10px; width: 32px; height: 32px; border-radius: 50%; background: rgba(0,0,0,0.6); border: none; color: #fff; cursor: pointer; font-size: 16px; opacity: 0; transition: opacity 0.3s; }
+    .photo:hover .photo-action { opacity: 1; }
+    .photo-action.favorited { color: #FF3B30; }
+    
+    /* Gallery - Waterfall */
+    .gallery.waterfall { display: block; column-count: 4; column-gap: 10px; }
+    .gallery.waterfall .photo { break-inside: avoid; margin-bottom: 10px; }
+    .gallery.waterfall .photo img { height: auto; }
+    @media (max-width: 1200px) { .gallery.waterfall { column-count: 3; } }
+    @media (max-width: 800px) { .gallery.waterfall { column-count: 2; } }
+    
+    /* Timeline */
+    .timeline-nav { display: none; background: #2a2a2a; border-radius: 12px; padding: 15px; margin-bottom: 20px; }
+    .timeline-nav.active { display: block; }
+    .timeline-year { margin-bottom: 10px; }
+    .timeline-year-header { display: flex; align-items: center; gap: 10px; padding: 10px; background: #333; border-radius: 8px; cursor: pointer; }
+    .timeline-year-header:hover, .timeline-year-header.active { background: #007AFF; }
+    .timeline-months { display: none; padding: 10px 0 0 30px; }
+    .timeline-year.expanded .timeline-months { display: block; }
+    .timeline-month { display: inline-block; padding: 6px 12px; margin: 4px; background: #333; border-radius: 6px; cursor: pointer; font-size: 13px; }
+    .timeline-month:hover, .timeline-month.active { background: #007AFF; }
+    
+    /* Map */
+    #map { display: none; height: 600px; border-radius: 12px; overflow: hidden; margin-top: 20px; }
+    #map.active { display: block; }
+    
+    /* Video Gallery */
+    .video-section { display: none; }
+    .video-section.active { display: block; }
+    .video-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 15px; }
+    .video-item { border-radius: 12px; overflow: hidden; background: #2a2a2a; cursor: pointer; transition: transform 0.3s; }
+    .video-item:hover { transform: scale(1.02); }
+    .video-thumbnail { position: relative; width: 100%; height: 180px; background: #000; }
+    .video-thumbnail video { width: 100%; height: 100%; object-fit: cover; }
+    .video-play-btn { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); width: 60px; height: 60px; border-radius: 50%; background: rgba(0,0,0,0.7); border: none; color: #fff; font-size: 24px; cursor: pointer; }
+    .video-duration { position: absolute; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+    .video-info { padding: 12px; }
+    .video-name { font-size: 14px; font-weight: bold; margin-bottom: 5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .video-meta { font-size: 12px; color: #888; }
+    .video-bird { color: #4CAF50; font-weight: bold; }
+    
+    /* Video Modal */
+    .video-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 2000; }
+    .video-modal.active { display: flex; justify-content: center; align-items: center; }
+    .video-modal-content { max-width: 90%; max-height: 90%; }
+    .video-modal-content video { max-width: 100%; max-height: 90vh; border-radius: 8px; }
+    .video-modal-close { position: absolute; top: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,0.2); border: none; color: #fff; font-size: 24px; cursor: pointer; }
+    .video-modal-title { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; }
+    
+    /* Upload Button */
+    .upload-btn { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: #007AFF; color: #fff; font-size: 30px; border: none; cursor: pointer; box-shadow: 0 4px 20px rgba(0,122,255,0.4); z-index: 100; }
+    .upload-btn:hover { transform: scale(1.1); }
+    
+    /* Upload Modal */
+    .upload-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
+    .upload-modal.active { display: flex; }
+    .upload-panel { background: #2a2a2a; border-radius: 16px; padding: 30px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+    .upload-panel h2 { margin-bottom: 20px; }
+    .upload-dropzone { border: 2px dashed #444; border-radius: 12px; padding: 40px; text-align: center; color: #888; cursor: pointer; }
+    .upload-dropzone:hover { border-color: #007AFF; background: rgba(0,122,255,0.1); }
+    .upload-dropzone input { display: none; }
+    .upload-tip { margin-top: 15px; font-size: 12px; color: #666; text-align: center; }
+    .upload-options { margin-top: 20px; }
+    .upload-list { margin-top: 20px; }
+    .upload-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: #333; border-radius: 8px; margin-bottom: 8px; }
+    .upload-item.success { border-left: 3px solid #34C759; }
+    .upload-item.error { border-left: 3px solid #FF3B30; }
+    .upload-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; }
+    .btn-primary { background: #007AFF; color: #fff; }
+    .btn-secondary { background: #444; color: #fff; }
+    .btn-close { position: absolute; top: 20px; right: 20px; font-size: 30px; color: #fff; cursor: pointer; background: none; border: none; }
+    
+    /* Lightbox */
+    .lightbox { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.95); z-index: 1000; justify-content: center; align-items: center; }
+    .lightbox.active { display: flex; }
+    .lightbox img { max-width: 90%; max-height: 90%; object-fit: contain; }
+    .lightbox-close { position: absolute; top: 20px; right: 20px; font-size: 40px; color: #fff; cursor: pointer; }
+    .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); font-size: 40px; color: #fff; cursor: pointer; padding: 20px; }
+    .lightbox-nav:hover { background: rgba(0,0,0,0.5); }
+    .lightbox-prev { left: 20px; }
+    .lightbox-next { right: 20px; }
+    .lightbox-info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 15px 25px; border-radius: 8px; text-align: center; }
+    
+    /* Slideshow */
+    .slideshow { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: #000; z-index: 2000; }
+    .slideshow.active { display: flex; }
+    .slideshow img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .slideshow-close { position: absolute; top: 20px; right: 20px; font-size: 40px; color: #fff; cursor: pointer; z-index: 10; }
+    .slideshow-nav { position: absolute; top: 50%; transform: translateY(-50%); font-size: 60px; color: #fff; cursor: pointer; padding: 30px; z-index: 10; }
+    .slideshow-nav:hover { background: rgba(0,0,0,0.6); }
+    .slideshow-prev { left: 20px; }
+    .slideshow-next { right: 20px; }
+    .slideshow-info { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); padding: 15px 25px; border-radius: 8px; }
+    .slideshow-progress { position: absolute; bottom: 0; left: 0; height: 3px; background: #007AFF; transition: width 0.3s; }
+    
+    .loading { text-align: center; padding: 40px; color: #666; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>📷 鸟类图库</h1>
+    <div class="toolbar">
+      <div class="view-switcher">
+        <button class="view-btn active" data-view="grid">▦</button>
+        <button class="view-btn" data-view="waterfall">▙</button>
+        <button class="view-btn" data-view="slideshow">▶</button>
+        <button class="view-btn" data-view="timeline">📅</button>
+        <button class="view-btn" data-view="map">🗺️</button>
+        <button class="view-btn" data-view="video">🎬</button>
+      </div>
+      <div class="search-box">
+        <span>🔍</span>
+        <input type="text" id="searchInput" placeholder="搜索鸟种/器材...">
+      </div>
+      <div class="filter-favorites" id="filterFavorites">❤️ 收藏</div>
+    </div>
+  </div>
+  
+  <div class="timeline-nav" id="timelineNav"></div>
+  
+  <div class="filters">
+    <div class="filter-group"><label>日期:</label><select id="filterDate"><option value="">全部</option></select></div>
+    <div class="filter-group"><label>器材:</label><select id="filterModel"><option value="">全部</option></select></div>
+    <div class="filter-group"><label>鸟种:</label><select id="filterBird"><option value="">全部</option></select></div>
+  </div>
+  
+  <div class="stats" id="stats"></div>
+  <div class="gallery" id="gallery"></div>
+  <div class="video-section" id="videoSection">
+    <div class="video-gallery" id="videoGallery"></div>
+  </div>
+  <div id="map"></div>
+  <div class="loading" id="loading">加载中...</div>
+  
+  <button class="upload-btn" id="uploadBtn" title="上传">+</button>
+  
+  <!-- Upload Modal -->
+  <div class="upload-modal" id="uploadModal">
+    <button class="btn-close" id="closeUpload">&times;</button>
+    <div class="upload-panel">
+      <h2>📤 上传照片</h2>
+      <div class="upload-dropzone" id="dropzone">
+        <input type="file" id="fileInput" multiple accept="image/*,.raw,.cr2,.nef,.arw,.dng,.heic,.avif">
+        <div>拖拽文件到这里，或点击选择<br><small>支持批量上传</small></div>
+      </div>
+      <div class="upload-tip">💡 也可直接 Ctrl+V 粘贴图片</div>
+      <div class="upload-options"><label><input type="checkbox" id="autoDate" checked> 自动按日期归类</label></div>
+      <div class="upload-list" id="uploadList"></div>
+      <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn btn-secondary" id="cancelUpload">关闭</button>
+        <button class="btn btn-primary" id="startUpload" disabled>开始上传</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox">
+    <span class="lightbox-close">&times;</span>
+    <span class="lightbox-nav lightbox-prev">‹</span>
+    <span class="lightbox-nav lightbox-next">›</span>
+    <img id="lightboxImg" src="">
+    <div class="lightbox-info" id="lightboxInfo"></div>
+  </div>
+  
+  <!-- Slideshow -->
+  <div class="slideshow" id="slideshow">
+    <span class="slideshow-close">&times;</span>
+    <span class="slideshow-nav slideshow-prev">‹</span>
+    <span class="slideshow-nav slideshow-next">›</span>
+    <img id="slideshowImg" src="">
+    <div class="slideshow-info" id="slideshowInfo"></div>
+    <div class="slideshow-progress" id="slideshowProgress"></div>
+  </div>
+
+  <script>
+    const API = '/api';
+    let allPhotos = [];
+    let filteredPhotos = [];
+    let currentIndex = 0;
+    let favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
+    let currentView = 'grid';
+    let showFavoritesOnly = false;
+    let slideshowTimer = null;
+    let map = null;
+    let markers = [];
+    
+    // Init
+    loadPhotos();
+    loadVideos();
+    
+    // View switcher
+    document.querySelectorAll('.view-btn').forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentView = btn.dataset.view;
+        
+        const gallery = document.getElementById('gallery');
+        const mapDiv = document.getElementById('map');
+        const timelineNav = document.getElementById('timelineNav');
+        const videoSection = document.getElementById('videoSection');
+        
+        gallery.style.display = 'block';
+        mapDiv.classList.remove('active');
+        videoSection.classList.remove('active');
+        
+        if (currentView === 'waterfall') gallery.classList.add('waterfall');
+        else gallery.classList.remove('waterfall');
+        
+        if (currentView === 'timeline') timelineNav.classList.add('active');
+        else timelineNav.classList.remove('active');
+        
+        if (currentView === 'map') {
+          gallery.style.display = 'none';
+          mapDiv.classList.add('active');
+          loadMap();
+        }
+        
+        if (currentView === 'video') {
+          gallery.style.display = 'none';
+          videoSection.classList.add('active');
+        }
+        
+        if (currentView === 'slideshow') startSlideshow();
+      };
+    });
+    
+    // Search
+    document.getElementById('searchInput').oninput = renderGallery;
+    
+    // Favorites filter
+    document.getElementById('filterFavorites').onclick = () => {
+      showFavoritesOnly = !showFavoritesOnly;
+      document.getElementById('filterFavorites').classList.toggle('active', showFavoritesOnly);
+      renderGallery();
+    };
+    
+    // Upload
+    const uploadModal = document.getElementById('uploadModal');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    let selectedFiles = [];
+    
+    // Video Modal
+    const videoModal = document.createElement('div');
+    videoModal.className = 'video-modal';
+    videoModal.innerHTML = `
+      <button class="video-modal-close">&times;</button>
+      <div class="video-modal-content">
+        <video id="videoPlayer" controls></video>
+      </div>
+      <div class="video-modal-title" id="videoTitle"></div>
+    `;
+    document.body.appendChild(videoModal);
+    
+    videoModal.querySelector('.video-modal-close').onclick = () => {
+      videoModal.classList.remove('active');
+      document.getElementById('videoPlayer').pause();
+    };
+    videoModal.onclick = e => {
+      if (e.target === videoModal) {
+        videoModal.classList.remove('active');
+        document.getElementById('videoPlayer').pause();
+      }
+    };
+    
+    uploadBtn.onclick = () => { uploadModal.classList.add('active'); selectedFiles = []; };
+    document.getElementById('closeUpload').onclick = () => uploadModal.classList.remove('active');
+    document.getElementById('cancelUpload').onclick = () => uploadModal.classList.remove('active');
+    uploadModal.onclick = e => { if (e.target === uploadModal) uploadModal.classList.remove('active'); };
+    
+    dropzone.onclick = () => fileInput.click();
+    dropzone.ondragover = e => { e.preventDefault(); dropzone.classList.add('dragover'); };
+    dropzone.ondragleave = () => dropzone.classList.remove('dragover');
+    dropzone.ondrop = e => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); };
+    fileInput.onchange = () => handleFiles(fileInput.files);
+    
+    function handleFiles(files) {
+      selectedFiles = [...files];
+      document.getElementById('uploadList').innerHTML = selectedFiles.map(f => 
+        `<div class="upload-item"><span class="upload-item-name">${f.name}</span><span>${(f.size/1024/1024).toFixed(2)} MB</span></div>`
+      ).join('');
+      document.getElementById('startUpload').disabled = selectedFiles.length === 0;
+    }
+    
+    // Paste upload
+    document.onpaste = e => {
+      for (const item of e.clipboardData.items) {
+        if (item.type.indexOf('image') !== -1) {
+          const file = item.getAsFile();
+          if (file) {
+            selectedFiles = [file];
+            uploadModal.classList.add('active');
+            handleFiles(selectedFiles);
+            document.getElementById('startUpload').onclick();
+          }
+        }
+      }
+    };
+    
+    // Start upload
+    document.getElementById('startUpload').onclick = async () => {
+      const btn = document.getElementById('startUpload');
+      btn.disabled = true;
+      btn.textContent = '上传中...';
+      
+      const formData = new FormData();
+      selectedFiles.forEach(f => formData.append('photos', f));
+      formData.append('autoDate', document.getElementById('autoDate').checked);
+      
+      try {
+        const res = await fetch(API + '/upload', { method: 'POST', body: formData });
+        const data = await res.json();
+        uploadModal.classList.remove('active');
+        loadPhotos();
+      } catch (err) { alert('上传失败: ' + err.message); }
+      
+      btn.disabled = false;
+      btn.textContent = '开始上传';
+    };
+    
+    // Load photos
+    async function loadPhotos() {
+      document.getElementById('loading').style.display = 'block';
+      const res = await fetch(API + '/photos');
+      allPhotos = await res.json();
+      
+      // Build filters
+      const dates = {}, models = {}, birds = {};
+      for (const p of allPhotos) {
+        if (p.exif?.dateTime) dates[p.exif.dateTime.substring(0,10)] = (dates[p.exif.dateTime.substring(0,10)] || 0) + 1;
+        if (p.exif?.model) models[p.exif.model] = (models[p.exif.model] || 0) + 1;
+        if (p.bird?.chinese) birds[p.bird.chinese] = (birds[p.bird.chinese] || 0) + 1;
+      }
+      
+      document.getElementById('filterDate').innerHTML = '<option value="">全部</option>' + 
+        Object.keys(dates).sort().reverse().map(d => `<option value="${d}">${d}</option>`).join('');
+      document.getElementById('filterModel').innerHTML = '<option value="">全部</option>' + 
+        Object.keys(models).sort().map(m => `<option value="${m}">${m}</option>`).join('');
+      document.getElementById('filterBird').innerHTML = '<option value="">全部</option>' + 
+        Object.keys(birds).sort().map(b => `<option value="${b}">${b}</option>`).join('');
+      
+      document.getElementById('filterDate').onchange = renderGallery;
+      document.getElementById('filterModel').onchange = renderGallery;
+      document.getElementById('filterBird').onchange = renderGallery;
+      
+      document.getElementById('loading').style.display = 'none';
+      renderGallery();
+      buildTimeline(dates);
+    }
+    
+    // Load videos
+    async function loadVideos() {
+      try {
+        const res = await fetch(API + '/videos');
+        allVideos = await res.json();
+        renderVideos();
+      } catch (e) {
+        console.error('Failed to load videos:', e);
+      }
+    }
+    
+    function renderVideos() {
+      const gallery = document.getElementById('videoGallery');
+      if (!allVideos || allVideos.length === 0) {
+        gallery.innerHTML = '<p style="color:#666;text-align:center;padding:40px;">暂无视频</p>';
+        return;
+      }
+      
+      gallery.innerHTML = allVideos.map(v => {
+        const videoPath = v.path.split('/').map(encodeURIComponent).join('/');
+        return `
+        <div class="video-item" data-path="${v.path}">
+          <div class="video-thumbnail">
+            <video src="${videoPath}" preload="metadata" muted></video>
+            <button class="video-play-btn">▶</button>
+            <span class="video-duration">--:--</span>
+          </div>
+          <div class="video-info">
+            <div class="video-name">${v.name}</div>
+            <div class="video-meta">
+              ${v.bird ? `<span class="video-bird">${v.bird.chinese}</span>` : ''}
+              ${v.modified ? new Date(v.modified).toLocaleDateString('zh-CN') : ''}
+            </div>
+          </div>
+        </div>
+        `;
+      }).join('');
+      
+      // Add click handlers
+      document.querySelectorAll('.video-item').forEach(item => {
+        item.onclick = () => playVideo(item.dataset.path, item.querySelector('.video-name').textContent);
+      });
+      
+      // Update duration after metadata loads
+      document.querySelectorAll('.video-thumbnail video').forEach(video => {
+        video.onloadedmetadata = () => {
+          const duration = video.duration;
+          const mins = Math.floor(duration / 60);
+          const secs = Math.floor(duration % 60);
+          video.parentElement.querySelector('.video-duration').textContent = 
+            `${mins}:${secs.toString().padStart(2, '0')}`;
+        };
+      });
+    }
+    
+    function playVideo(path, name) {
+      const player = document.getElementById('videoPlayer');
+      // Encode the path - keep the full path
+      const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+      player.src = encodedPath;
+      document.getElementById('videoTitle').textContent = name;
+      videoModal.classList.add('active');
+      player.play();
+    }
+    
+    let allVideos = [];
+    
+    function isFavorite(p) { return favorites.includes(p.path); }
+    
+    function toggleFavorite(p, btn) {
+      if (isFavorite(p)) {
+        favorites = favorites.filter(f => f !== p.path);
+        btn.classList.remove('favorited');
+        btn.textContent = '♡';
+      } else {
+        favorites.push(p.path);
+        btn.classList.add('favorited');
+        btn.textContent = '❤️';
+      }
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+      if (showFavoritesOnly) renderGallery();
+    }
+    
+    function renderGallery() {
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const dateFilter = document.getElementById('filterDate').value;
+      const modelFilter = document.getElementById('filterModel').value;
+      const birdFilter = document.getElementById('filterBird').value;
+      
+      filteredPhotos = allPhotos.filter(p => {
+        if (showFavoritesOnly && !isFavorite(p)) return false;
+        if (search && !p.name.toLowerCase().includes(search) && !p.bird?.chinese?.toLowerCase().includes(search) && !p.exif?.model?.toLowerCase().includes(search)) return false;
+        if (dateFilter && !p.exif?.dateTime?.startsWith(dateFilter)) return false;
+        if (modelFilter && p.exif?.model !== modelFilter) return false;
+        if (birdFilter && p.bird?.chinese !== birdFilter) return false;
+        return true;
+      });
+      
+      document.getElementById('stats').textContent = `共 ${filteredPhotos.length} 张照片`;
+      
+      const gallery = document.getElementById('gallery');
+      gallery.innerHTML = filteredPhotos.map((p, i) => `
+        <div class="photo" data-index="${i}">
+          <img src="${API}/thumbnail?name=${encodeURIComponent(p.path.replace('/photos/', ''))}" alt="${p.name}" loading="lazy">
+          <div class="photo-overlay">
+            <div class="photo-info">
+              ${p.bird ? `<div class="photo-bird">${p.bird.chinese}</div><div>${p.bird.english}</div>` : ''}
+              ${p.starRating ? `<div class="photo-stars">${'⭐'.repeat(p.starRating)}</div>` : ''}
+              <div>${p.exif?.dateTime ? new Date(p.exif.dateTime).toLocaleString() : ''}</div>
+            </div>
+          </div>
+          <button class="photo-action ${isFavorite(p) ? 'favorited' : ''}">${isFavorite(p) ? '❤️' : '♡'}</button>
+        </div>
+      `).join('');
+      
+      document.querySelectorAll('.photo').forEach(div => {
+        div.onclick = () => openLightbox(parseInt(div.dataset.index));
+        div.querySelector('.photo-action').onclick = e => { e.stopPropagation(); toggleFavorite(filteredPhotos[div.dataset.index], e.target); };
+      });
+    }
+    
+    function buildTimeline(dates) {
+      const timeline = {};
+      for (const d of Object.keys(dates)) {
+        const [y, m] = d.split('-');
+        if (!timeline[y]) timeline[y] = {};
+        timeline[y][m] = (timeline[y][m] || 0) + dates[d];
+      }
+      
+      const months = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+      
+      document.getElementById('timelineNav').innerHTML = Object.keys(timeline).sort().reverse().map(y => `
+        <div class="timeline-year" data-year="${y}">
+          <div class="timeline-year-header" onclick="this.parentElement.classList.toggle('expanded')">
+            <span>📅</span><span>${y}年</span><span style="margin-left:auto">${Object.values(timeline[y]).reduce((a,b)=>a+b,0)}张</span>
+          </div>
+          <div class="timeline-months">
+            ${Object.keys(timeline[y]).sort().reverse().map(m => 
+              `<span class="timeline-month" data-year="${y}" data-month="${m}">${months[parseInt(m)-1]}</span>`
+            ).join('')}
+          </div>
+        </div>
+      `).join('');
+      
+      document.querySelectorAll('.timeline-month').forEach(el => {
+        el.onclick = () => {
+          document.querySelectorAll('.timeline-month').forEach(m => m.classList.remove('active'));
+          el.classList.add('active');
+          document.getElementById('filterDate').value = el.dataset.year + '-' + el.dataset.month;
+          renderGallery();
+        };
+      });
+    }
+    
+    // Lightbox
+    function openLightbox(i) {
+      currentIndex = i;
+      updateLightbox();
+      document.getElementById('lightbox').classList.add('active');
+    }
+    
+    function updateLightbox() {
+      const p = filteredPhotos[currentIndex];
+      document.getElementById('lightboxImg').src = p.path;
+      let info = [];
+      if (p.bird) info.push(`<div style="color:#4CAF50;font-size:18px">${p.bird.chinese}</div><div>${p.bird.english}</div>`);
+      if (p.starRating) info.push('⭐'.repeat(p.starRating));
+      if (p.exif?.dateTime) info.push(new Date(p.exif.dateTime).toLocaleString());
+      if (p.exif?.model) info.push(p.exif.model);
+      document.getElementById('lightboxInfo').innerHTML = info.join('<br>') || p.name;
+    }
+    
+    document.querySelector('.lightbox-close').onclick = () => document.getElementById('lightbox').classList.remove('active');
+    document.getElementById('lightbox').onclick = e => { if (e.target.id === 'lightbox') document.getElementById('lightbox').classList.remove('active'); };
+    document.querySelector('.lightbox-prev').onclick = () => { currentIndex = (currentIndex - 1 + filteredPhotos.length) % filteredPhotos.length; updateLightbox(); };
+    document.querySelector('.lightbox-next').onclick = () => { currentIndex = (currentIndex + 1) % filteredPhotos.length; updateLightbox(); };
+    
+    // Slideshow
+    function startSlideshow() {
+      if (filteredPhotos.length === 0) return;
+      currentIndex = 0;
+      document.getElementById('slideshow').classList.add('active');
+      updateSlideshow();
+      if (slideshowTimer) clearInterval(slideshowTimer);
+      slideshowTimer = setInterval(() => { currentIndex = (currentIndex + 1) % filteredPhotos.length; updateSlideshow(); }, 3000);
+    }
+    
+    function updateSlideshow() {
+      const p = filteredPhotos[currentIndex];
+      document.getElementById('slideshowImg').src = p.path;
+      document.getElementById('slideshowInfo').textContent = p.bird?.chinese || p.name;
+      document.getElementById('slideshowProgress').style.width = ((currentIndex + 1) / filteredPhotos.length * 100) + '%';
+    }
+    
+    document.querySelector('.slideshow-close').onclick = () => { document.getElementById('slideshow').classList.remove('active'); clearInterval(slideshowTimer); };
+    document.querySelector('.slideshow-prev').onclick = () => { currentIndex = (currentIndex - 1 + filteredPhotos.length) % filteredPhotos.length; updateSlideshow(); clearInterval(slideshowTimer); slideshowTimer = setInterval(() => { currentIndex = (currentIndex + 1) % filteredPhotos.length; updateSlideshow(); }, 3000); };
+    document.querySelector('.slideshow-next').onclick = () => { currentIndex = (currentIndex + 1) % filteredPhotos.length; updateSlideshow(); clearInterval(slideshowTimer); slideshowTimer = setInterval(() => { currentIndex = (currentIndex + 1) % filteredPhotos.length; updateSlideshow(); }, 3000); };
+    
+    // Keyboard
+    document.onkeydown = e => {
+      if (document.getElementById('lightbox').classList.contains('active')) {
+        if (e.key === 'ArrowLeft') { currentIndex = (currentIndex - 1 + filteredPhotos.length) % filteredPhotos.length; updateLightbox(); }
+        else if (e.key === 'ArrowRight') { currentIndex = (currentIndex + 1) % filteredPhotos.length; updateLightbox(); }
+        else if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('active');
+      }
+      if (document.getElementById('slideshow').classList.contains('active')) {
+        if (e.key === 'ArrowLeft') { currentIndex = (currentIndex - 1 + filteredPhotos.length) % filteredPhotos.length; updateSlideshow(); }
+        else if (e.key === 'ArrowRight') { currentIndex = (currentIndex + 1) % filteredPhotos.length; updateSlideshow(); }
+        else if (e.key === 'Escape') { document.getElementById('slideshow').classList.remove('active'); clearInterval(slideshowTimer); }
+      }
+    };
+    
+    // Map
+    async function loadMap() {
+      const mapDiv = document.getElementById('map');
+      if (!map) {
+        map = L.map('map').setView([35.6762, 139.6503], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+      }
+      
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+      
+      try {
+        const res = await fetch(API + '/map');
+        const photos = await res.json();
+        
+        for (const p of photos) {
+          if (p.location?.lat) {
+            const marker = L.marker([p.location.lat, p.location.lng]).addTo(map)
+              .bindPopup(`<div style="text-align:center"><img src="${API}/thumbnail?name=${encodeURIComponent(p.path.replace('/photos/',''))}" style="width:150px;border-radius:4px"><div style="margin-top:8px;font-weight:bold">${p.bird?.chinese || ''}</div><div style="font-size:12px">${p.bird?.english || ''}</div></div>`);
+            markers.push(marker);
+          }
+        }
+        
+        if (markers.length > 0) {
+          const group = L.featureGroup(markers);
+          map.fitBounds(group.getBounds().pad(0.1));
+        }
+        
+        document.getElementById('stats').textContent = `地图视图 - ${markers.length} 个标记点`;
+      } catch (err) { console.error(err); }
+    }
+  </script>
+</body>
+</html>

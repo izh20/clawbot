@@ -1,0 +1,60 @@
+// Bird Species Database
+// Chinese name -> Scientific name & English name
+
+const birdSpecies = {
+  "普通翠鸟": { scientific: "Alcedo atthis", english: "Common Kingfisher", family: "翠鸟科" },
+  "棕背伯劳": { scientific: "Lanius schach", english: "Long-tailed Shrike", family: "伯劳科" },
+  "白头鹎": { scientific: "Pycnonotus sinensis", english: "Light-vented Bulbul", family: "鹎科" },
+  "红头长尾山雀": { scientific: "Aegithalos concinnus", english: "Red-headed Long-tailed Tit", family: "长尾山雀科" },
+  "红胁蓝尾鸲": { scientific: "Tarsiger cyanurus", english: "Red-flanked Bluetail", family: "鹟科" },
+  "金翅雀": { scientific: "Chloris sinica", english: "Oriental Greenfinch", family: "燕雀科" },
+  "领雀嘴鹎": { scientific: "Spizixos semitorques", english: "Collared Finchbill", family: "鹎科" },
+  "黑尾蜡嘴雀": { scientific: "Eophona migratoria", english: "Japanese Yellow-billed Grosbeak", family: "燕雀科" },
+  "黑脸噪鹛": { scientific: "Garrulax perspicillatus", english: "Masked Laughingthrush", family: "画眉科" },
+  "乌鸫": { scientific: "Turdus mandarinus", english: "Chinese Blackbird", family: "鸫科" },
+  "珠颈斑鸠": { scientific: "Streptopelia chinensis", english: "Spotted Dove", family: "鸠鸽科" },
+  "白鹭": { scientific: "Egretta garzetta", english: "Little Egret", family: "鹭科" },
+  "苍鹭": { scientific: "Ardea cinerea", english: "Grey Heron", family: "鹭科" },
+  "夜鹭": { scientific: "Nycticorax nycticorax", english: "Black-crowned Night Heron", family: "鹭科" },
+  "池鹭": { scientific: "Ardeola bacchus", english: "Chinese Pond Heron", family: "鹭科" },
+  "小鸊鷉": { scientific: "Tachybaptus ruficollis", english: "Little Grebe", family: "鸊鷉科" },
+  "山雀": { scientific: "Parus major", english: "Great Tit", family: "山雀科" },
+  "麻雀": { scientific: "Passer montanus", english: "Eurasian Tree Sparrow", family: "雀科" },
+  "燕雀": { scientific: "Fringilla montifringilla", english: "Brambling", family: "燕雀科" },
+  "黑鹳": { scientific: "Ciconia nigra", english: "Black Stork", family: "鹳科" },
+  "东方大苇莺": { scientific: "Acrocephalus orientalis", english: "Oriental Reed Warbler", family: "苇莺科" },
+  "大杜鹃": { scientific: "Cuculus canorus", english: "Common Cuckoo", family: "杜鹃科" },
+  "四声杜鹃": { scientific: "Cuculus micropterus", english: "Indian Cuckoo", family: "杜鹃科" },
+  "噪鹃": { scientific: "Eudynamys scolopaceus", english: "Asian Koel", family: "杜鹃科" },
+  "戴胜": { scientific: "Upupa epops", english: "Eurasian Hoopoe", family: "戴胜科" },
+  "普通鵟": { scientific: "Buteo buteo", english: "Common Buzzard", family: "鹰科" },
+  "松雀鹰": { scientific: "Accipiter gularis", english: "Japanese Sparrowhawk", family: "鹰科" },
+  "苍鹰": { scientific: "Accipiter gentilis", english: "Northern Goshawk", family: "鹰科" },
+  "红隼": { scientific: "Falco tinnunculus", english: "Common Kestrel", family: "隼科" },
+  "游隼": { scientific: "Falco peregrinus", english: "Peregrine Falcon", family: "隼科" },
+  "黄雀": { scientific: "Spinus spinus", english: "Eurasian Siskin", family: "燕雀科" },
+  "白喉红臀鹎": { scientific: "Pycnonotus aurigaster", english: "Sooty-headed Bulbul", family: "鹎科" },
+  "斑鸫": { scientific: "Turdus eunomus", english: "Dusky Thrush", family: "鸫科" },
+  "白鹡鸰": { scientific: "Motacilla alba", english: "White Wagtail", family: "鹡鸰科" },
+  "纯色山鹪莺": { scientific: "Prinia inornata", english: "Plain Prinia", family: "扇尾莺科" },
+  "黑卷尾": { scientific: "Dicrurus macrocercus", english: "Black Drongo", family: "卷尾科" },
+  "灰喜鹊": { scientific: "Cyanopica cyanus", english: "Azure-winged Magpie", family: "鸦科" },
+  "喜鹊": { scientific: "Pica pica", english: "Common Magpie", family: "鸦科" },
+  "白颊噪鹛": { scientific: "Pterorhinus sannio", english: "White-cheeked Laughingthrush", family: "画眉科" },
+  "画眉": { scientific: "Garrulax canorus", english: "Chinese Hwamei", family: "画眉科" },
+  "八哥": { scientific: "Acridotheres cristatellus", english: "Crested Myna", family: "椋鸟科" },
+  "丝光椋鸟": { scientific: "Spodiopsar sericeus", english: "Red-billed Starling", family: "椋鸟科" },
+  "灰椋鸟": { scientific: "Spodiopsar cineraceus", english: "White-cheeked Starling", family: "椋鸟科" },
+  "黑领椋鸟": { scientific: "Gracupica nigricollis", english: "Black-collared Starling", family: "椋鸟科" },
+  "北红尾鸲": { scientific: "Phoenicurus auroreus", english: "Daurian Redstart", family: "鹟科" },
+  "红耳鹎": { scientific: "Pycnonotus jocosus", english: "Red-whiskered Bulbul", family: "鹎科" },
+  "鹊鸲": { scientific: "Copsychus saularis", english: "Oriental Magpie-Robin", family: "鹟科" },
+  "亚成体": { scientific: "Juvenile", english: "Juvenile", family: "未知" },
+  "未识别": { scientific: "Unidentified", english: "Unidentified", family: "未知" },
+};
+
+function getBirdInfo(chineseName) {
+  return birdSpecies[chineseName] || null;
+}
+
+module.exports = { birdSpecies, getBirdInfo };

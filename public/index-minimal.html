@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Photo Gallery</title>
+  <style>
+    body { background: #1a1a1a; color: #fff; font-family: sans-serif; padding: 20px; }
+    .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+    .photo { border-radius: 8px; overflow: hidden; }
+    .photo img { width: 100%; height: auto; }
+    .loading { text-align: center; padding: 40px; }
+  </style>
+</head>
+<body>
+  <h1>📷 Photos</h1>
+  <div class="loading" id="loading">Loading...</div>
+  <div class="gallery" id="gallery"></div>
+  <script>
+    const API = '/api';
+    fetch(API + '/photos')
+      .then(r => r.json())
+      .then(photos => {
+        document.getElementById('loading').style.display = 'none';
+        const gallery = document.getElementById('gallery');
+        photos.forEach(p => {
+          const div = document.createElement('div');
+          div.className = 'photo';
+          div.innerHTML = '<img src="' + API + '/thumbnail?name=' + encodeURIComponent(p.path.replace('/photos/', '')) + '">';
+          gallery.appendChild(div);
+        });
+      })
+      .catch(e => {
+        document.getElementById('loading').textContent = 'Error: ' + e.message;
+      });
+  </script>
+</body>
+</html>
