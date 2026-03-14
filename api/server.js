@@ -16,7 +16,9 @@ process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });
 
-const PHOTO_DIR = '/Volumes/扩展盘512G/bird_photo';//'/Users/zhouheng/Pictures';
+const PHOTO_DIR = '/Volumes/扩展盘512G/bird_photo/图片';
+const VIDEO_DIR = '/Volumes/扩展盘512G/bird_photo/视频';
+const PHOTO_BASE_DIR = '/Volumes/扩展盘512G/bird_photo';
 const PORT = 3000;
 
 // Configure multer for file uploads
@@ -95,7 +97,7 @@ app.post('/api/upload', upload.array('photos', 100), async (req, res) => {
         fs.writeFileSync(finalPath, file.buffer);
         
         // Generate thumbnails asynchronously (WebP, AVIF, JPEG)
-        const thumbDir = path.join(PHOTO_DIR, '.thumbnails');
+        const thumbDir = path.join(PHOTO_BASE_DIR, '.thumbnails');
         ensureDir(thumbDir);
         
         const baseName = path.basename(finalPath, path.extname(finalPath));
@@ -338,6 +340,27 @@ app.get('/api/videos', async (req, res) => {
     const videos = [];
     const videoExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm'];
     
+    // 自动生成视频缩略图函数
+    async function ensureVideoThumbnail(filePath, dir) {
+      const baseName = path.basename(filePath, path.extname(filePath));
+      const thumbDir = path.join(dir, 'thumbnails');
+      const thumbPath = path.join(thumbDir, baseName + '.jpg');
+      
+      // 如果缩略图已存在，跳过
+      if (fs.existsSync(thumbPath)) return;
+      
+      // 创建缩略图目录
+      if (!fs.existsSync(thumbDir)) {
+        fs.mkdirSync(thumbDir, { recursive: true });
+      }
+      
+      // 生成缩略图（异步，不阻塞）
+      const { exec } = require('child_process');
+      exec(`ffmpeg -i "${filePath}" -ss 00:00:01 -vframes 1 -s 320x180 -q:v 2 "${thumbPath}" -loglevel error`, (err) => {
+        if (err) console.log('缩略图生成失败:', baseName, err.message);
+      });
+    }
+    
     function scanForVideos(dir) {
       const files = fs.readdirSync(dir);
       for (const file of files) {
@@ -354,7 +377,10 @@ app.get('/api/videos', async (req, res) => {
         const ext = path.extname(file).toLowerCase();
         if (!videoExtensions.includes(ext)) continue;
         
-        const relativePath = filePath.replace(PHOTO_DIR + '/', '');
+        // 自动生成缩略图
+        ensureVideoThumbnail(filePath, dir).catch(console.error);
+        
+        const relativePath = filePath.replace(VIDEO_DIR + '/', '');
         const pathParts = relativePath.split('/');
         let birdSpecies = null;
         
@@ -382,7 +408,7 @@ app.get('/api/videos', async (req, res) => {
       }
     }
     
-    scanForVideos(PHOTO_DIR);
+    scanForVideos(VIDEO_DIR);
     
     // Sort by date
     videos.sort((a, b) => new Date(b.modified) - new Date(a.modified));
@@ -394,7 +420,7 @@ app.get('/api/videos', async (req, res) => {
 });
 
 // Serve videos statically
-app.use('/videos', express.static(PHOTO_DIR));
+app.use('/videos', express.static(VIDEO_DIR));
 
 // Get thumbnail
 app.get('/api/thumbnail', async (req, res) => {
@@ -537,4 +563,5 @@ app.use('/photos', express.static(PHOTO_DIR));
 app.listen(PORT, () => {
   console.log(`Photo gallery API running at http://localhost:${PORT}`);
   console.log(`Photos directory: ${PHOTO_DIR}`);
+  console.log(`Videos directory: ${VIDEO_DIR}`);
 });

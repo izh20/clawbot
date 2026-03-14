@@ -419,11 +419,20 @@
       }
       
       gallery.innerHTML = allVideos.map(v => {
-        const videoPath = v.path.split('/').map(encodeURIComponent).join('/');
+        const videoPath = v.path;
+        // 提取视频文件名，去掉扩展名
+        const videoBaseName = v.name.replace(/\.(mp4|MP4|MOV)$/, '');
+        // 根据视频路径确定缩略图目录
+        let thumbDir = '/videos';
+        if (v.path.includes('视频_防抖压缩')) {
+            thumbDir = '/videos/视频_防抖压缩';
+        } else if (v.path.includes('马鞍山观鸟视频')) {
+            thumbDir = '/videos/马鞍山观鸟视频';
+        }
         return `
         <div class="video-item" data-path="${v.path}">
           <div class="video-thumbnail">
-            <video src="${videoPath}" preload="metadata" muted></video>
+            <video src="${videoPath}" poster="${thumbDir}/thumbnails/${videoBaseName}.jpg" preload="metadata" muted></video>
             <button class="video-play-btn">▶</button>
             <span class="video-duration">--:--</span>
           </div>
