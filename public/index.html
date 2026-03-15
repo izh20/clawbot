@@ -97,24 +97,7 @@
     .video-modal-title { position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 8px; }
     
     /* Upload Button */
-    .upload-btn { position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px; border-radius: 50%; background: #007AFF; color: #fff; font-size: 30px; border: none; cursor: pointer; box-shadow: 0 4px 20px rgba(0,122,255,0.4); z-index: 100; }
-    .upload-btn:hover { transform: scale(1.1); }
-    
-    /* Upload Modal */
-    .upload-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; }
-    .upload-modal.active { display: flex; }
-    .upload-panel { background: #2a2a2a; border-radius: 16px; padding: 30px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
-    .upload-panel h2 { margin-bottom: 20px; }
-    .upload-dropzone { border: 2px dashed #444; border-radius: 12px; padding: 40px; text-align: center; color: #888; cursor: pointer; }
-    .upload-dropzone:hover { border-color: #007AFF; background: rgba(0,122,255,0.1); }
-    .upload-dropzone input { display: none; }
-    .upload-tip { margin-top: 15px; font-size: 12px; color: #666; text-align: center; }
-    .upload-options { margin-top: 20px; }
-    .upload-list { margin-top: 20px; }
-    .upload-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: #333; border-radius: 8px; margin-bottom: 8px; }
-    .upload-item.success { border-left: 3px solid #34C759; }
-    .upload-item.error { border-left: 3px solid #FF3B30; }
-    .upload-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Upload CSS removed for security */
     .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; }
     .btn-primary { background: #007AFF; color: #fff; }
     .btn-secondary { background: #444; color: #fff; }
@@ -182,26 +165,9 @@
   <div id="map"></div>
   <div class="loading" id="loading">加载中...</div>
   
-  <button class="upload-btn" id="uploadBtn" title="上传">+</button>
+  <!-- Upload button and modal removed for security -->
   
-  <!-- Upload Modal -->
-  <div class="upload-modal" id="uploadModal">
-    <button class="btn-close" id="closeUpload">&times;</button>
-    <div class="upload-panel">
-      <h2>📤 上传照片</h2>
-      <div class="upload-dropzone" id="dropzone">
-        <input type="file" id="fileInput" multiple accept="image/*,.raw,.cr2,.nef,.arw,.dng,.heic,.avif">
-        <div>拖拽文件到这里，或点击选择<br><small>支持批量上传</small></div>
-      </div>
-      <div class="upload-tip">💡 也可直接 Ctrl+V 粘贴图片</div>
-      <div class="upload-options"><label><input type="checkbox" id="autoDate" checked> 自动按日期归类</label></div>
-      <div class="upload-list" id="uploadList"></div>
-      <div style="margin-top: 20px; display: flex; gap: 10px; justify-content: flex-end;">
-        <button class="btn btn-secondary" id="cancelUpload">关闭</button>
-        <button class="btn btn-primary" id="startUpload" disabled>开始上传</button>
-      </div>
-    </div>
-  </div>
+  <!-- Upload Modal removed for security -->
   
   <!-- Lightbox -->
   <div class="lightbox" id="lightbox">
@@ -285,90 +251,7 @@
       renderGallery();
     };
     
-    // Upload
-    const uploadModal = document.getElementById('uploadModal');
-    const uploadBtn = document.getElementById('uploadBtn');
-    const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('fileInput');
-    let selectedFiles = [];
-    
-    // Video Modal
-    const videoModal = document.createElement('div');
-    videoModal.className = 'video-modal';
-    videoModal.innerHTML = `
-      <button class="video-modal-close">&times;</button>
-      <div class="video-modal-content">
-        <video id="videoPlayer" controls></video>
-      </div>
-      <div class="video-modal-title" id="videoTitle"></div>
-    `;
-    document.body.appendChild(videoModal);
-    
-    videoModal.querySelector('.video-modal-close').onclick = () => {
-      videoModal.classList.remove('active');
-      document.getElementById('videoPlayer').pause();
-    };
-    videoModal.onclick = e => {
-      if (e.target === videoModal) {
-        videoModal.classList.remove('active');
-        document.getElementById('videoPlayer').pause();
-      }
-    };
-    
-    uploadBtn.onclick = () => { uploadModal.classList.add('active'); selectedFiles = []; };
-    document.getElementById('closeUpload').onclick = () => uploadModal.classList.remove('active');
-    document.getElementById('cancelUpload').onclick = () => uploadModal.classList.remove('active');
-    uploadModal.onclick = e => { if (e.target === uploadModal) uploadModal.classList.remove('active'); };
-    
-    dropzone.onclick = () => fileInput.click();
-    dropzone.ondragover = e => { e.preventDefault(); dropzone.classList.add('dragover'); };
-    dropzone.ondragleave = () => dropzone.classList.remove('dragover');
-    dropzone.ondrop = e => { e.preventDefault(); dropzone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); };
-    fileInput.onchange = () => handleFiles(fileInput.files);
-    
-    function handleFiles(files) {
-      selectedFiles = [...files];
-      document.getElementById('uploadList').innerHTML = selectedFiles.map(f => 
-        `<div class="upload-item"><span class="upload-item-name">${f.name}</span><span>${(f.size/1024/1024).toFixed(2)} MB</span></div>`
-      ).join('');
-      document.getElementById('startUpload').disabled = selectedFiles.length === 0;
-    }
-    
-    // Paste upload
-    document.onpaste = e => {
-      for (const item of e.clipboardData.items) {
-        if (item.type.indexOf('image') !== -1) {
-          const file = item.getAsFile();
-          if (file) {
-            selectedFiles = [file];
-            uploadModal.classList.add('active');
-            handleFiles(selectedFiles);
-            document.getElementById('startUpload').onclick();
-          }
-        }
-      }
-    };
-    
-    // Start upload
-    document.getElementById('startUpload').onclick = async () => {
-      const btn = document.getElementById('startUpload');
-      btn.disabled = true;
-      btn.textContent = '上传中...';
-      
-      const formData = new FormData();
-      selectedFiles.forEach(f => formData.append('photos', f));
-      formData.append('autoDate', document.getElementById('autoDate').checked);
-      
-      try {
-        const res = await fetch(API + '/upload', { method: 'POST', body: formData });
-        const data = await res.json();
-        uploadModal.classList.remove('active');
-        loadPhotos();
-      } catch (err) { alert('上传失败: ' + err.message); }
-      
-      btn.disabled = false;
-      btn.textContent = '开始上传';
-    };
+    // Upload code removed for security
     
     // Load photos
     async function loadPhotos() {
