@@ -59,8 +59,11 @@ function getDateFolder(dateObj) {
 
 // ============= API ROUTES (defined first) =============
 
-// Upload endpoint
+// Upload endpoint - DISABLED
 app.post('/api/upload', upload.array('photos', 100), async (req, res) => {
+  return res.status(403).json({ error: 'Upload disabled' });
+});
+/* ORIGINAL CODE
   try {
     const results = [];
     const autoDate = req.body.autoDate !== 'false';
@@ -156,9 +159,14 @@ app.post('/api/upload', upload.array('photos', 100), async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+*/
 
-// Paste upload endpoint
+
+// Paste upload endpoint - DISABLED
 app.post('/api/upload-paste', async (req, res) => {
+  return res.status(403).json({ error: 'Upload disabled' });
+});
+/* ORIGINAL CODE
   try {
     const { image, filename, autoDate } = req.body;
     
@@ -205,6 +213,9 @@ app.post('/api/upload-paste', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+// */
+
 
 // Get all photos recursively
 app.get('/api/photos', async (req, res) => {
